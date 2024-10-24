@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import pyreadstat
+import tempfile  # To handle the temporary saving of the file
 import plotly.express as px
 
 # Function to detect question type based on column data
@@ -41,8 +42,13 @@ st.title("Survey Dashboard (SPSS .sav file support)")
 uploaded_file = st.file_uploader("Upload your survey data (.sav)", type="sav")
 
 if uploaded_file is not None:
+    # Create a temporary file to store the uploaded .sav file
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        tmp_file.write(uploaded_file.getvalue())
+        tmp_file_path = tmp_file.name
+
     # Read the SPSS file (both data and meta data)
-    survey_data, meta = pyreadstat.read_sav(uploaded_file)
+    survey_data, meta = pyreadstat.read_sav(tmp_file_path)
 
     # Display dataset and metadata
     st.write("Data:")
