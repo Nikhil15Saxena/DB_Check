@@ -19,14 +19,13 @@ def detect_question_type(column, value_labels):
 # Function to generate visualizations for multiple brands under a question
 def generate_brand_visualization(data, columns, question_type, value_labels):
     if question_type == "rating" or question_type == "numerical":
-        # Create a dataframe for all brand columns
+        # Combine data from multiple brands (sub-questions) into a single dataframe
         melted_data = data[columns].melt(var_name="Brand", value_name="Rating")
         fig = px.bar(melted_data, x="Brand", y="Rating", text="Rating")
     elif question_type == "categorical":
-        # Pie chart showing distribution for each brand
-        fig = px.pie(data, names=columns[0])  # For simplicity, just showing one brand pie chart
+        # For categorical, we will show a pie chart for the first brand (for simplicity)
+        fig = px.pie(data, names=columns[0])
     else:
-        # Fallback to bar chart for other types of data
         fig = px.bar(data, x=columns[0])
     return fig
 
@@ -55,23 +54,17 @@ if uploaded_file is not None:
     # Create a dictionary to store value labels (mappings) from the metadata
     value_labels = meta.variable_value_labels
     
-    # Display questions (variable labels from metadata) in dropdown for selection
+    # Show human-readable question labels in the dropdown
     question_map = {meta.column_labels[i]: meta.column_names[i] for i in range(len(meta.column_names))}
     question_label = st.selectbox("Select Question", list(question_map.keys()))
 
-    # Get the associated column(s) for the selected question
-    selected_column = question_map[question_label]
-    
-    # Check if there are multiple columns for this question (e.g., for different brands)
-    # This assumes that brands have similar names or patterns in the column names, e.g., "Brand1_Q1", "Brand2_Q1"
-    related_columns = [col for col in survey_data.columns if selected_column in col]
-    
-    if len(related_columns) > 1:
-        st.write(f"Detected multiple brands for the question: {', '.join(related_columns)}")
-    else:
-        related_columns = [selected_column]  # Just the one column
-    
-    # Automatically detect question type based on first brand column
+    # Get the base column name for the selected question (e.g., "Q_ABA")
+    selected_base_column = question_map[question_label].split('r')[0]
+
+    # Find all related columns (e.g., Q_ABAp1r1, Q_ABAp1r2, etc.)
+    related_columns = [col for col in survey_data.columns if col.startswith(selected_base_column)]
+
+    # Automatically detect question type based on the first related column
     question_type = detect_question_type(survey_data[related_columns[0]], value_labels)
 
     # Display detected question type
