@@ -4,25 +4,46 @@ import pyreadstat
 import plotly.express as px
 import tempfile
 
-# Function to detect if a column is a rating question
+# Function to detect question type based on column data (simplified for ratings)
 def detect_question_type(column):
     if pd.api.types.is_numeric_dtype(column):
         return "rating"
     return "other"
 
-# Function to generate a stacked bar chart for ratings
-def generate_stacked_bar_chart(data, columns, value_labels):
+# Function to prepare the data for a stacked bar chart
+def prepare_stacked_bar_data(data, columns, value_labels):
     # Melt the data for all brand columns into a long format
     melted_data = data[columns].melt(var_name="Brand", value_name="Rating")
     
-    # If value_labels exist, map them to the data
+    # Map the rating scale labels (if they exist in the metadata)
     if value_labels:
         for col in columns:
             melted_data['Rating'] = melted_data['Rating'].map(value_labels.get(col, {}))
+    
+    # Calculate the percentage distribution for each brand and rating
+    rating_counts = melted_data.groupby(['Brand', 'Rating']).size().reset_index(name='Count')
+    total_counts = melted_data.groupby('Brand')['Rating'].count().reset_index(name='Total')
+    rating_counts = pd.merge(rating_counts, total_counts, on='Brand')
+    rating_counts['Percentage'] = (rating_counts['Count'] / rating_counts['Total']) * 100
+    
+    return rating_counts
 
-    # Create a stacked bar chart showing proportions of different ratings for each brand
-    fig = px.histogram(melted_data, x="Brand", color="Rating", barmode="relative",
-                       histnorm='percent', text_auto=True)
+# Function to generate a stacked bar chart with percentages
+def generate_stacked_bar_chart(data, value_labels):
+    fig = px.bar(
+        data, 
+        x="Brand", 
+        y="Percentage", 
+        color="Rating", 
+        barmode="stack", 
+        text_auto='.2f',  # Display data labels with 2 decimal places
+        color_discrete_sequence=px.colors.qualitative.Set1
+    )
+    fig.update_layout(
+        yaxis=dict(title="Percentage", tickformat="%", range=[0, 100]),
+        xaxis=dict(title="Brands"),
+        title="Proportion of Rating Scales for Each Brand"
+    )
     return fig
 
 # Streamlit app
@@ -69,11 +90,13 @@ if uploaded_file is not None:
     question_type = detect_question_type(survey_data[related_columns[0]])
 
     if question_type == "rating":
-        # Create a stacked bar chart for rating questions
-        st.write(f"Detected Question Type: Rating (Brands: {', '.join(related_columns)})")
+        st.write(f"Detected Question Type: Rating")
 
+        # Prepare data for stacked bar chart
+        rating_data = prepare_stacked_bar_data(survey_data, related_columns, meta.variable_value_labels)
+        
         # Generate and display the stacked bar chart
-        fig = generate_stacked_bar_chart(survey_data, related_columns, meta.variable_value_labels)
+        fig = generate_stacked_bar_chart(rating_data, meta.variable_value_labels)
         st.plotly_chart(fig)
     
     # Show basic statistics for the selected question
