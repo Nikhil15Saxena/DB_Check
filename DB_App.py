@@ -36,14 +36,17 @@ def generate_stacked_bar_chart(data, value_labels):
         y="Percentage", 
         color="Rating", 
         barmode="stack", 
-        text_auto='.2f',  # Display data labels with 2 decimal places
+        text="Percentage",  # Display percentage as data labels
         color_discrete_sequence=px.colors.qualitative.Set1
     )
     fig.update_layout(
-        yaxis=dict(title="Percentage", tickformat="%", range=[0, 100]),
+        yaxis=dict(title="Percentage", tickformat=".0%", range=[0, 100]),  # Y-axis range fixed to 0-100%
         xaxis=dict(title="Brands"),
-        title="Proportion of Rating Scales for Each Brand"
+        title="Proportion of Rating Scales for Each Brand",
+        uniformtext_minsize=8,  # Uniform text size for labels
+        uniformtext_mode="hide",  # Hide text that doesn't fit
     )
+    fig.update_traces(texttemplate='%{text:.2f}%', textposition='inside')  # Format data labels as percentages
     return fig
 
 # Streamlit app
